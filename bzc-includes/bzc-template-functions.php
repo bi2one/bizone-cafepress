@@ -32,7 +32,7 @@ function bzc_get_template_part( $slug, $name = null ) {
 		$templates[] = $slug . '-' . $name . '.php';
 	$templates[] = $slug . '.php';
 
-	// Allow template parst to be filtered
+	// Allow template part to be filtered
 	$templates = apply_filters( 'bzc_get_template_part', $templates, $slug, $name );
 
 	// Return the part that is found
@@ -59,6 +59,8 @@ function bzc_locate_template( $template_names, $load = false, $require_once = tr
 	// No file found yet
 	$located = false;
 
+	/* echo STYLESHEETPATH . '<br />'; */
+	/* echo TEMPLATEPATH . '<br />'; */
 	// Try to find a template file
 	foreach ( (array) $template_names as $template_name ) {
 		// Continue if template is empty
@@ -66,17 +68,36 @@ function bzc_locate_template( $template_names, $load = false, $require_once = tr
 			continue;
 
 		// Trim off any slashes from the template name
-		$template_name = bizone_cafepress()->template_dir . ltrim( $template_name, '/' );
-		
+		$template_name = ltrim( $template_name, '/' );
+
+		/* STYLESHEETPATH / TEMPLATEPATH 이걸로 child parent를 어떻게 ... 알지? */
+		/* print_r(bizone_cafepress()->theme_compat); */
+		// Check child theme first
+		if ( file_exists( trailingslashit( STYLESHEETPATH ) . $template_name ) ) {
+			$located = trailingslashit( STYLESHEETPATH ) . $template_name;
+			break;
+
+		// Check parent theme next
+		} elseif ( file_exists( trailingslashit( TEMPLATEPATH ) . $template_name ) ) {
+			$located = trailingslashit( TEMPLATEPATH ) . $template_name;
+			break;
+
+		// Check theme compatibility last
+		} elseif ( file_exists( trailingslashit( bzc_get_theme_compat_dir() ) . $template_name ) ) {
+			$located = trailingslashit( bzc_get_theme_compat_dir() ) . $template_name;
+			break;
+		}
+
 		if ( file_exists( $template_name ) ) {
 			$located = $template_name;
 			break;
 		}
 	}
 
-	if ( ( true == $load ) && !empty( $located ) )
+	if ( ( true == $load ) && !empty( $located ) ) {
 		load_template( $located, $require_once );
-	
+	}
+
 	return $located;
 }
 ?>

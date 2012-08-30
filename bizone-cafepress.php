@@ -2,15 +2,13 @@
 /*
   Plugin Name: Bizone Cafepress
   Plugin URI: http://twitter.com/bi2one
-  Description: cafepress prototype
+  Description: cafepress prototype, using bbpress architecture.
   Author: JungGyun Lee
   Version: 0.1
   Author URI: http://twitter.com/bi2one
  */
 
 define( 'WP_DEBUG', true );
-define( 'BIZONE_CAFEPRESS_LATE_LOAD', '100' );
-define( 'BIZONE_CAFEPRESS_VERSION', '0.1' );
 
 /**
  * Main Bizone_Cafepress Class
@@ -39,8 +37,6 @@ final class Bizone_Cafepress {
 			self::$instance = new Bizone_Cafepress;
 			self::$instance->setup_globals();
 			self::$instance->includes();
-			
-			self::$instance->setup_actions();
 		}
 		return self::$instance;
 	}
@@ -53,12 +49,29 @@ final class Bizone_Cafepress {
 	 */
 	private function includes() {
 		/** Core **************************************************************/
+		require( $this->plugin_dir . 'bzc-includes/bzc-core-schema.php' );
 		require( $this->plugin_dir . 'bzc-includes/bzc-core-actions.php' );
-		require( $this->plugin_dir . 'bzc-includes/bzc-core-shortcodes.php' );
-		require( $this->plugin_dir . 'bzc-includes/bzc-core-widgets.php' );
-		
+		require( $this->plugin_dir . 'bzc-includes/bzc-core-filters.php' );
+		require( $this->plugin_dir . 'bzc-includes/bzc-core-menus.php' );
+		require( $this->plugin_dir . 'bzc-includes/bzc-core-meta-boxes.php' );
+
+		/** Models ************************************************************/
+		require( $this->plugin_dir . 'bzc-includes/bzc-db-shortcuts.php' );
+		require( $this->plugin_dir . 'bzc-includes/bzc-db-boards.php' );
+		require( $this->plugin_dir . 'bzc-includes/bzc-db-guestbook-posts.php' );
+
+		/** List Tables *******************************************************/
+		// require( $this->plugin_dir . 'bzc-includes/class-bzc-board-list-table.php' );
+
 		/** Templates *********************************************************/
-		require( $this->plugin_dir . 'bzc-includes/bzc-template-functions.php');
+		require( $this->plugin_dir . 'bzc-includes/bzc-board-template.php' );
+		require( $this->plugin_dir . 'bzc-includes/bzc-guestbook-template.php' );
+
+		/** Admin *************************************************************/
+		if ( is_admin() ) {
+			require( $this->plugin_dir . 'bzc-admin/bzc-admin.php' );
+			require( $this->plugin_dir . 'bzc-admin/bzc-actions.php' );
+		}
 	}
 
 	/**
@@ -96,84 +109,28 @@ final class Bizone_Cafepress {
 	 * @uses apply_filters() Calls various filters
 	 */
 	private function setup_globals() {
-		$this->version         = BIZONE_CAFEPRESS_VERSION;
+		global $wpdb;
+		$this->version         = '0.1';
+		$this->db_version      = '1';
+		$this->prefix          = $wpdb->prefix . 'bzc_';
 		$this->file            = __FILE__;
-		
+
 		$this->basename        = apply_filters( 'bzc_plugin_basename', plugin_basename( $this->file ) );
 		$this->plugin_dir      = apply_filters( 'bzc_plugin_dir_path',  plugin_dir_path( $this->file ) );
 		$this->plugin_url      = apply_filters( 'bzc_plugin_dir_url', plugin_dir_url( $this->file ) );
-		$this->media_admin_dir = apply_filters( 'bzc_admin_media_dir', trailingslashit( $this->plugin_dir . 'admin-media' ) );
-		$this->template_dir = apply_filters( 'bzc_template_dir', trailingslashit( $this->plugin_dir . 'bzc-templates' ) );
-
-		/* setup admin */
-		/* add_action( 'admin_init', array( $this, 'apply_admin_menu' ) ); */
-		/* add_action( 'admin_head', array( $this, 'apply_admin_script' ), 100 ); */
+		$this->themes_dir = apply_filters( 'bzc_themes_dir', trailingslashit( $this->plugin_dir . 'bzc-themes' ) );
+		$this->themes_url = apply_filters( 'bzc_themes_url', trailingslashit( $this->plugin_url . 'bzc-themes' ) );
 
 		/* Queries ************************************************************/
 
-		$this->board_query = new stdClass;
+		/* Tables *************************************************************/
+		$this->board_table = apply_filters( 'bzc_board_table', $this->prefix . 'boards' );
+		$this->guestbook_table = apply_filters( 'bzc_guestbook_table', $this->prefix . 'guestbook_posts' );
+		/* Slugs **************************************************************/
+		$this->board_slug = apply_filters( 'bzc_board_slug', 'boards' );
+		$this->guestbook_post_action_slug = apply_filters( 'bzc_guestbook_post_action_slug', 'guestbook_post' );
+		$this->guestbook_remove_action_slug = apply_filters( 'bzc_guestbook_remove_action_slug', 'guestbook_delete' );
 	}
-
-	/**
-	 * Set media files
-	 *
-	 * @since bizone-cafepress (v0.1)
-	 * @access private
-	 */
-	private function setup_medias() {
-		wp_register_style( 'bzc-admin-style', $this->media_admin_dir . 'style.css' );
-	}
-
-	/**
-	 * Setup the default hooks and actions
-	 *
-	 * @since bizone-cafepress (v0.1)
-	 * @access private
-	 * @uses Bizone_Cafepress::admin_style()
-	 * @uses Bizone_Cafepress::admin_reg_menu()
-	 * @uses add_action() To add various actions
-	 */
-	private function setup_actions() {
-		add_action( 'admin_init', array( $this, 'admin_style' ) );
-		// add_action( 'admin_menu', array( $this, 'apply_admin_menu' ) );
-		add_action( 'admin_head', array( $this, 'apply_admin_script' ), 100 );
-	}
-
-	public function cafeboard_figure($atts) {
-		
-	}
-
-	/**
-	 * Setup styles for admin
-	 *
-	 * @since bizone-cafepress (v0.1)
-	 * @uses wp_enqueue_style()
-	 */
-	public function admin_style() {
-		wp_enqueue_style( 'bzc-admin-style' );
-	}
-
-	/**
-	 * Register admin menu
-	 *
-	 * @since bizone-cafepress (v0.1)
-	 */
-	public function apply_admin_menu() {
-		if ( current_user_can( 'edit_posts' ) && current_user_can( 'edit_pages' ) ) {
-			/* TODO ==================================== */
-			/* add_filter( 'mce_buttons', array( $this, 'filter_mce_button' ) ); */
-			/* add_filter( 'mce_external_plugins', 'simplr_filter_mce_plugin' ); */
-		}
-	}
-
-	public function apply_admin_script() {
-		?>
-		<script type="text/javascript">
-		//<![CDATA[	  //]]>
-		</script> 
-		<?php
-	}
-
 }
 
 function bizone_cafepress() {
